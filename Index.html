@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Rokzcy | Cyber Awareness Ops Center</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0A0E1A;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #eef2ff;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    /* monospace for headings & technical accents */
+    h1, h2, h3, .mono, .sidebar-nav a, .threat-stat, .glow-dot, .cert-badge {
+      font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+    }
+
+    /* canvas animated background (particle network) */
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 20% 30%, #0A0E1A, #03050b);
+    }
+
+    /* main layout grid */
+    .app-wrapper {
+      display: flex;
+      position: relative;
+      z-index: 2;
+      min-height: 100vh;
+    }
+
+    /* ========= SIDEBAR (animated, glassmorphism) ========= */
+    .sidebar {
+      width: 280px;
+      background: rgba(13, 27, 62, 0.55);
+      backdrop-filter: blur(12px);
+      border-right: 1px solid rgba(59, 130, 246, 0.3);
+      padding: 2rem 1rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      transition: all 0.25s ease;
+      z-index: 10;
+      box-shadow: 8px 0 25px rgba(0,0,0,0.4);
+    }
+
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #bfd9ff;
+      font-weight: 500;
+      transition: all 0.2s;
+      border-left: 2px solid transparent;
+      backdrop-filter: blur(2px);
+    }
+
+    .sidebar-nav a i { font-style: normal; font-size: 1.4rem; }
+
+    .sidebar-nav a:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-left-color: #3B82F6;
+      color: white;
+      box-shadow: 0 0 8px rgba(6, 182, 212, 0.3);
+      transform: translateX(4px);
+    }
+
+    .sidebar-nav a.active {
+      background: linear-gradient(90deg, rgba(59,130,246,0.2), transparent);
+      border-left-color: #06B6D4;
+      color: #ffffff;
+      text-shadow: 0 0 4px cyan;
+    }
+
+    /* main content */
+    .main-content {
+      flex: 1;
+      padding: 2rem 2rem 4rem;
+      max-width: calc(100% - 280px);
+      overflow-x: hidden;
+    }
+
+    /* section styling */
+    section {
+      margin-bottom: 5rem;
+      scroll-margin-top: 90px;
+      transition: opacity 0.4s ease;
+    }
+
+    .glass-card {
+      background: rgba(13, 27, 62, 0.65);
+      backdrop-filter: blur(10px);
+      border-radius: 28px;
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(6, 182, 212, 0.1);
+      transition: all 0.3s;
+    }
+
+    .glass-card:hover {
+      border-color: #3B82F6;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.3), 0 8px 20px rgba(0,0,0,0.4);
+    }
+
+    /* progress dots indicator */
+    .progress-dots {
+      position: fixed;
+      right: 28px;
+      bottom: 30px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      background: rgba(10,14,26,0.6);
+      backdrop-filter: blur(8px);
+      padding: 12px 8px;
+      border-radius: 40px;
+      border: 1px solid #1A3A6B;
+    }
+    .glow-dot {
+      width: 12px;
+      height: 12px;
+      background-color: #2c4f7c;
+      border-radius: 50%;
+      transition: all 0.25s;
+      cursor: pointer;
+    }
+    .glow-dot.active {
+      background-color: #06B6D4;
+      box-shadow: 0 0 12px #06B6D4, 0 0 4px #3B82F6;
+      transform: scale(1.3);
+    }
+
+    /* top live metrics bar */
+    .live-metrics {
+      display: flex;
+      gap: 2rem;
+      background: rgba(13,27,62,0.7);
+      backdrop-filter: blur(10px);
+      padding: 0.8rem 1.8rem;
+      border-radius: 60px;
+      margin-bottom: 2.5rem;
+      border: 1px solid #1A3A6B;
+      width: fit-content;
+    }
+    .metric {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      font-weight: 600;
+    }
+    .metric span:first-child { color: #8aaee0; font-size: 0.85rem; }
+    .threat-stat { color: #06B6D4; font-size: 1.4rem; font-weight: 700; letter-spacing: 1px; }
+
+    /* cards grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.8rem;
+      margin-top: 2rem;
+    }
+
+    .phish-card {
+      padding: 1.6rem;
+      border-radius: 24px;
+      background: #0D1B3E;
+      transition: all 0.2s;
+      border-bottom: 2px solid #1A3A6B;
+    }
+    .phish-card:hover { transform: translateY(-5px); border-color: #3B82F6; }
+
+    /* fake email zone */
+    .fake-email {
+      background: #0a1022;
+      border-radius: 20px;
+      padding: 1.5rem;
+      border: 1px solid #2a4b7a;
+    }
+    .highlight-zone {
+      background: rgba(59,130,246,0.1);
+      padding: 2px 6px;
+      border-radius: 12px;
+      cursor: help;
+      transition: all 0.2s;
+      position: relative;
+      display: inline-block;
+    }
+    .highlight-zone:hover {
+      background: rgba(6,182,212,0.4);
+      text-shadow: 0 0 2px cyan;
+      box-shadow: 0 0 6px cyan;
+    }
+    .tooltip-custom {
+      position: absolute;
+      background: #0f172f;
+      color: #06B6D4;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      z-index: 100;
+      border: 1px solid #3B82F6;
+      font-family: monospace;
+      top: -30px;
+      left: 0;
+      pointer-events: none;
+    }
+
+    /* comparison cards */
+    .compare-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+    }
+    .url-card {
+      flex: 1;
+      background: #0D1B3E;
+      padding: 1.5rem;
+      border-radius: 28px;
+      text-align: center;
+    }
+
+    /* accordion */
+    .accordion-item {
+      background: rgba(13,27,62,0.6);
+      margin-bottom: 1rem;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+    .accordion-header {
+      padding: 1rem 1.5rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: bold;
+      background: #0D1B3E;
+    }
+    .accordion-content { max-height: 0; overflow: hidden; transition: 0.3s ease; padding: 0 1.5rem; }
+    .accordion-item.open .accordion-content { max-height: 250px; padding-bottom: 1.2rem; padding-top: 0.4rem; }
+
+    /* quiz */
+    .quiz-question {
+      background: #0D1B3E;
+      border-radius: 24px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .quiz-option {
+      background: #12223f;
+      margin: 0.5rem 0;
+      padding: 0.7rem 1rem;
+      border-radius: 40px;
+      cursor: pointer;
+      transition: 0.1s;
+      border-left: 3px solid transparent;
+    }
+    .quiz-option:hover { background: #1e345c; transform: translateX(4px);}
+    .quiz-option.selected.correct { border-left-color: #06B6D4; background: #0f3b4b; }
+    .quiz-option.selected.wrong { border-left-color: #f97316; background: #451e1e;}
+
+    /* best practices grid */
+    .tips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px,1fr));
+      gap: 1.5rem;
+    }
+
+    /* certificate */
+    .certificate-card {
+      text-align: center;
+      padding: 2rem;
+      background: linear-gradient(145deg, #0D1B3E, #05102a);
+    }
+
+    button, .download-btn {
+      background: #1A3A6B;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 40px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      font-family: monospace;
+    }
+    button:hover { background: #3B82F6; box-shadow: 0 0 12px #3B82F6;}
+
+    @media (max-width: 880px) {
+      .sidebar { width: 100px; padding: 1rem 0.5rem; align-items: center; }
+      .sidebar-nav a span:last-child { display: none; }
+      .sidebar-nav a i { font-size: 1.8rem; margin: 0 auto; }
+      .sidebar-nav a { justify-content: center; padding: 12px 0; }
+      .main-content { margin-left: 0; max-width: 100%; padding: 1rem; }
+      .app-wrapper { flex-direction: column; }
+      .sidebar { position: relative; width: 100%; height: auto; flex-direction: row; justify-content: center; padding: 0.8rem; }
+      .sidebar-nav { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 0.8rem; margin-top: 0; }
+      .progress-dots { right: 16px; bottom: 16px; flex-direction: row; gap: 10px; background: rgba(0,0,0,0.7); padding: 8px 12px; border-radius: 40px; }
+    }
+  </style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="app-wrapper">
+  <aside class="sidebar">
+    <div style="text-align:center; margin-bottom: 1rem;"><span style="font-size: 1.8rem; color:#3B82F6">⚡</span><span class="mono" style="display:block; font-size:0.8rem;">Phish<span style="color:#06B6D4">Shield</span></span></div>
+    <nav class="sidebar-nav">
+      <a href="#hero" class="nav-link" data-section="hero"><i>🏴‍☠️</i><span> Threat Intel</span></a>
+      <a href="#phishing-types" class="nav-link" data-section="phishing-types"><i>📧</i><span> Attack Vectors</span></a>
+      <a href="#redflags" class="nav-link" data-section="redflags"><i>🚩</i><span> Red Flags</span></a>
+      <a href="#url-compare" class="nav-link" data-section="url-compare"><i>🌐</i><span> URL Forensics</span></a>
+      <a href="#social-eng" class="nav-link" data-section="social-eng"><i>🧠</i><span> Social Eng</span></a>
+      <a href="#quiz" class="nav-link" data-section="quiz"><i>❓</i><span> IR Simulator</span></a>
+      <a href="#best-practices" class="nav-link" data-section="best-practices"><i>🛡️</i><span> Hardening</span></a>
+      <a href="#certificate" class="nav-link" data-section="certificate"><i>🎓</i><span> Certification</span></a>
+    </nav>
+  </aside>
+  <main class="main-content">
+    <div class="live-metrics">
+      <div class="metric"><span>⚡ LIVE THREAT INDEX</span><span class="threat-stat" id="threatCounter">0</span></div>
+      <div class="metric"><span>📡 PHISHING DETECTIONS (24h)</span><span class="threat-stat" id="detectionRate">0</span></div>
+      <div class="metric"><span>🔐 ACTIVE SESSIONS</span><span class="threat-stat" id="activeSessions">1,284</span></div>
+    </div>
+
+    <section id="hero">
+      <div class="glass-card" style="padding: 2.5rem; text-align:center;">
+        <h1 class="mono" style="font-size: 3rem; letter-spacing: -1px;"><span id="typed-text"></span><span class="cursor">|</span></h1>
+        <p style="margin-top:1rem; max-width:700px; margin-inline:auto;">SOC Level-1 Phishing Defense — zero-trust simulation environment</p>
+        <div class="threat-stat" style="margin-top:2rem;">🌍 Global Threat Stats: <span id="globalThreatStat">2,347,891</span> suspicious emails today</div>
+      </div>
+    </section>
+
+    <section id="phishing-types"><h2 class="mono" style="border-left: 4px solid #06B6D4; padding-left: 1rem;">📡 Attack Vectors — Live Intel</h2>
+      <div class="cards-grid" id="phishCardsContainer"></div>
+    </section>
+
+    <section id="redflags"><h2 class="mono" style="border-left: 4px solid #06B6D4; padding-left: 1rem;">🔍 Spot the Red Flags: Deconstructed Email</h2>
+      <div class="glass-card fake-email" style="margin-top:1rem;">
+        <div style="border-bottom: 1px solid #2c527a; padding-bottom: 0.5rem;"><strong>From:</strong> <span class="highlight-zone" data-tooltip="Suspicious domain: noreply@secure-paypa1.com">noreply@secure-paypa1.com</span>   | <strong>To:</strong> employee@cyberorg.com</div>
+        <div style="margin: 1rem 0;"><strong>Subject:</strong> <span class="highlight-zone" data-tooltip="Urgency + threat: 'Immediate action required or account locked'">⚠️ URGENT: Account Suspension Risk</span></div>
+        <div>Dear user, your account will be <span class="highlight-zone" data-tooltip="Fake security alert">terminated in 24 hours</span>. Please verify immediately: <span class="highlight-zone" data-tooltip="Malicious redirect: fake-login.secure-verification.com">Click here to restore access</span>. Attached: <span class="highlight-zone" data-tooltip="Suspicious .html attachment">Invoice_Details.htm</span></div>
+      </div>
+      <p class="mono" style="margin-top:0.5rem; font-size:0.8rem;">🖱️ Hover any highlighted zone → real-time threat intelligence</p>
+    </section>
+
+    <section id="url-compare"><h2 class="mono" style="border-left: 4px solid #06B6D4; padding-left: 1rem;">🌐 Real vs Fake — URL Deep Scan</h2>
+      <div class="compare-grid"><div class="url-card glass-card"><span style="font-size:2rem;">✅</span><h3>Legitimate</h3><code style="word-break:break-all;">https://accounts.google.com</code><div class="threat-stat" style="color:#4ade80;">✓ Verified Domain</div></div>
+      <div class="url-card glass-card"><span style="font-size:2rem;">❌</span><h3>Phishing / Spoof</h3><code>https://accounts-verify.secure-login.ru</code><div class="threat-stat" style="color:#f97316;">✗ Malicious pattern + homograph</div></div></div>
+    </section>
+
+    <section id="social-eng"><h2 class="mono" style="border-left: 4px solid #06B6D4; padding-left: 1rem;">🧠 Social Engineering Tactics (Expand)</h2>
+      <div id="accordionContainer"></div>
+    </section>
+
+    <section id="quiz"><h2 class="mono" style="border-left: 4px solid #06B6D4; padding-left: 1rem;">⚡ Interactive IR Quiz — Score: <span id="quizScoreDisplay">0</span>/3</h2>
+      <div id="quizContainer"></div>
+    </section>
+
+    <section id="best-practices"><h2 class="mono" style="border-left: 4px solid #06B6D4; padding-left: 1rem;">🛡️ Cyber Hygiene & Best Practices</h2>
+      <div class="tips-grid" id="tipsGrid"></div>
+    </section>
+
+    <section id="certificate"><h2 class="mono" style="border-left: 4px solid #06B6D4; padding-left: 1rem;">🏅 Completion Certificate — SOC Analyst Ready</h2>
+      <div id="certificateArea" class="glass-card certificate-card" style="text-align:center;">
+        <p id="certMessage">Complete the quiz (3/3) to unlock your digital certificate badge.</p>
+        <div id="certDynamic"></div>
+      </div>
+    </section>
+    <div style="height: 2rem;"></div>
+  </main>
+</div>
+<div class="progress-dots" id="progressDots"></div>
+
+<script>
+  // ----- PHISHING TYPES DATA
+  const phishingTypes = [
+    { icon: "📧", title: "Email Phishing", desc: "Mass emails impersonating trusted entities, with malicious links." },
+    { icon: "📱", title: "SMS (Smishing)", desc: "Fake bank alerts / urgent texts to harvest credentials." },
+    { icon: "🎙️", title: "Vishing", desc: "Voice calls spoofing IT support to extract sensitive data." },
+    { icon: "🎯", title: "Spear Phishing", desc: "Targeted, personalized attacks using OSINT reconnaissance." }
+  ];
+  // Social Engineering Accordion
+  const socEngData = [
+    { title: "🔹 Pretexting", content: "Attackers create fabricated scenario to steal personal info, often pretending to be co-workers or vendors." },
+    { title: "🔸 Baiting", content: "Malicious USB drives or tempting downloads that install backdoors." },
+    { title: "🔹 Quid Pro Quo", content: "Offering a service (e.g., tech support) in exchange for login credentials." },
+    { title: "🔸 Tailgating", content: "Physical access breach, following employees into secure areas." },
+    { title: "🔹 Deepfake Vishing", content: "AI-generated voice clones of executives to authorize wire transfers." }
+  ];
+  // Best practices
+  const tips = ["Enable MFA everywhere", "Verify sender via secondary channel", "Hover before you click", "Report suspicious emails via Phish Alert Button", "Avoid USB drops", "Regular password rotation & unique passwords"];
+  // Quiz Questions
+  const quizQuestions = [
+    { text: "You get an email from 'HR@company-payroll.com' asking to update banking details via a link. What's the correct action?", options: ["Click link and update", "Check domain & contact HR directly", "Reply with credentials"], correct: 1 },
+    { text: "Urgent SMS from CEO: 'I'm in a meeting, buy $500 in gift cards and send codes.' What should you do?", options: ["Buy cards to help CEO", "Call CEO to verify", "Send codes quickly"], correct: 1 },
+    { text: "You see URL: https://signin-apple.com-verify.xyz — what is this?", options: ["Legitimate Apple page", "Phishing domain with deceptive naming", "Official subdomain"], correct: 1 }
+  ];
+  let userAnswers = [null, null, null];
+  let totalScore = 0;
+
+  function updateQuizScore() { let s = 0; userAnswers.forEach((ans, idx) => { if(ans !== null && ans === quizQuestions[idx].correct) s++; }); totalScore = s; document.getElementById("quizScoreDisplay").innerText = totalScore; updateCertificateSection(); renderQuiz(); }
+
+  function renderQuiz() { const container = document.getElementById("quizContainer"); if(!container) return; container.innerHTML = ""; quizQuestions.forEach((q, qi) => { let qDiv = document.createElement("div"); qDiv.className = "quiz-question"; qDiv.innerHTML = `<h4>${qi+1}. ${q.text}</h4>`; q.options.forEach((opt, oi) => { let optDiv = document.createElement("div"); optDiv.className = "quiz-option"; if(userAnswers[qi] === oi) optDiv.classList.add("selected", userAnswers[qi] === q.correct ? "correct" : "wrong"); optDiv.innerText = opt; optDiv.onclick = () => { userAnswers[qi] = oi; updateQuizScore(); }; qDiv.appendChild(optDiv); }); container.appendChild(qDiv); }); }
+
+  function updateCertificateSection() { const certDynamicDiv = document.getElementById("certDynamic"); const certMsg = document.getElementById("certMessage"); if(totalScore === 3) { certMsg.innerText = "✅ Cyber Defense Certified! Your score qualifies for the official badge."; const nameInput = document.createElement("div"); nameInput.innerHTML = `<input type="text" id="analystName" placeholder="Enter your name" style="background:#0A0E1A; border:1px solid #3B82F6; padding:0.5rem; border-radius:50px; color:white; margin:1rem 0; width:80%;"> <br/><button id="downloadCertBtn" class="download-btn">⬇ Download Certificate (PNG)</button>`; certDynamicDiv.innerHTML = ""; certDynamicDiv.appendChild(nameInput); const btn = document.getElementById("downloadCertBtn"); if(btn) btn.onclick = () => downloadCertificate(); } else { certDynamicDiv.innerHTML = `<div class="threat-stat" style="margin-top:1rem;">🔒 Complete all quiz questions (Score ${totalScore}/3) to obtain certificate</div>`; } }
+
+  function downloadCertificate() { const name = document.getElementById("analystName")?.value || "Cyber Analyst"; const score = totalScore; const canvas = document.createElement("canvas"); canvas.width = 600; canvas.height = 400; const ctx = canvas.getContext("2d"); ctx.fillStyle = "#0A0E1A"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.strokeStyle = "#06B6D4"; ctx.lineWidth = 6; ctx.strokeRect(15, 15, canvas.width-30, canvas.height-30); ctx.font = "bold 22px 'JetBrains Mono', monospace"; ctx.fillStyle = "#3B82F6"; ctx.fillText("PHISH SHIELD CERTIFICATION", 70, 70); ctx.font = "18px monospace"; ctx.fillStyle = "#e2e8ff"; ctx.fillText(`This certifies that`, 70, 130); ctx.fillStyle = "#06B6D4"; ctx.font = "bold 24px monospace"; ctx.fillText(`${name}`, 70, 180); ctx.font = "16px monospace"; ctx.fillStyle = "#bbd9ff"; ctx.fillText(`has successfully completed Phishing Awareness Training`, 70, 240); ctx.fillStyle = "#4ade80"; ctx.font = "bold 32px monospace"; ctx.fillText(`SCORE: ${score}/3`, 70, 300); ctx.fillStyle = "#7f8cff"; ctx.font = "12px monospace"; ctx.fillText(`SOC Analyst Ready · ${new Date().toLocaleDateString()}`, 70, 370); const link = document.createElement("a"); link.download = `PhishShield_Cert_${name.replace(/\s/g, "_")}.png`; link.href = canvas.toDataURL(); link.click(); }
+
+  // Accordion builder
+  function buildAccordion() { const container = document.getElementById("accordionContainer"); container.
